@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { StockSkeleton } from '@/components/llm-stocks/stock-skeleton';
 import { EventsSkeleton } from '@/components/llm-stocks/events-skeleton';
 import { StocksSkeleton } from '@/components/llm-stocks/stocks-skeleton';
+import axios from 'axios';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -263,10 +264,32 @@ Besides that, you can also chat with users and do some calculations if needed.`,
       },
     ]);
   });
-
+  async function fetchStockPrice(symbol: string) {
+    try {
+      const response = await fetch(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=YOUR_ALPHA_VANTAGE_API_KEY`
+      );
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      const globalQuote = data['Global Quote'];
+      const price = parseFloat(globalQuote['05. price']);
+      const delta = parseFloat(globalQuote['09. change']);
+  
+      return { price, delta };
+    } catch (error) {
+      console.error('Error fetching stock price:', error);
+      throw error;
+    }
+  }
+  
   completion.onFunctionCall(
     'show_stock_price',
-    async ({ symbol, price, delta }) => {
+    async ({ symbol}) => {
+      const {price,delta}=await fetchStockPrice(symbol);
       reply.update(
         <BotCard>
           <StockSkeleton />
